@@ -1,51 +1,57 @@
 #!/usr/bin/python3
-
-
-"""
-UTF-8 Validation
-"""
+"""Script for UTF-8 validator function."""
 
 
 def validUTF8(data):
     """
-    Method to determine if a given data set represents a valid UTF-8 encoding.
-    Args:
-        data: List of integers where each integer represents a byte (0-255).
-    Returns:
-        True if the data is a valid UTF-8 encoding, else False.
+        Determines if a given data set represents a valid UTF-8 encoding.
+        Returns True if data is a valid UTF-8 encoding, otherwise False.
     """
-    # Number of bytes in the current UTF-8 character
-    n_bytes = 0
+    # 8-bit and 4-max-1s consts
+    # Loop over data list and:
+    # Extract each bit in an AND BITWISE OP = index
+    # Shift index by (8-bit - 1) in a SIGNED RT SHFT(>>) OP
+    # Validate utf-8 encoding pattern
+    # In an inner loop(RT SHFT thro' index(bit) until 0 is encountered),
+    # If char is single byte, continue to other chars in data list.
+    # Sum up the consec-1s and compare it with 4-max-1s
+    # Return False if consec-1s > 4-max-1s or eq to 1(Invalid utf-8)
+    # Validate consec-1s
+    # For multi-bytes char, check for next bytes if they start with 1
+    # followed by 0
+    # Return True if all the validation checks are met.
 
-    # Masks to check the most significant bits
-    mask1 = 1 << 7  # 10000000
-    mask2 = 1 << 6  # 01000000
-
-    for num in data:
-        # Get the binary representation. Remove the '0b' prefix.
-        bin_rep = bin(num)[2:].rjust(8, '0')
-
-        if n_bytes == 0:
-            # Count the number of leading 1's
-            for bit in bin_rep:
-                if bit == '0':
-                    break
-                n_bytes += 1
-
-            # 1-byte character
-            if n_bytes == 0:
-                continue
-
-            # UTF-8 characters can be 1 to 4 bytes long
-            if n_bytes == 1 or n_bytes > 4:
+    NUMBER_OF_BITS_PER_BLOCK = 8
+    MAX_NUMBER_OF_ONES = 4
+    index = 0
+    while index < len(data):
+        number = data[index] & (2 ** 7)
+        number >>= (NUMBER_OF_BITS_PER_BLOCK - 1)
+        if number == 0:
+            index += 1
+            continue
+        number_of_ones = 0
+        while True:
+            number = data[index] & (2 ** (7 - number_of_ones))
+            number >>= (NUMBER_OF_BITS_PER_BLOCK - number_of_ones - 1)
+            if number == 1:
+                number_of_ones += 1
+            else:
+                break
+            if number_of_ones > MAX_NUMBER_OF_ONES:
                 return False
-        else:
-            # Check if it is a valid continuation byte
-            if not (int(bin_rep[0]) == 1 and int(bin_rep[1]) == 0):
+        if number_of_ones == 1:
+            return False
+        index += 1
+        if index >= len(data) or index >= (index + number_of_ones - 1):
+            return False
+        for i in range(index, index + number_of_ones - 1):
+            number = data[i]
+            number >>= (NUMBER_OF_BITS_PER_BLOCK - 1)
+            if number != 1:
                 return False
-
-        # Decrement the number of bytes left to check
-        n_bytes -= 1
-
-    # If there are no more bytes expected
-    return n_bytes == 0
+            number >>= (NUMBER_OF_BITS_PER_BLOCK - 1)
+            if number != 0:
+                return False
+            index += 1
+    return True
